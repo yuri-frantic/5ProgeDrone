@@ -1,0 +1,6 @@
+# Request
+geometry_msgs/Point[] waypoints
+---
+# Response
+bool success
+string message

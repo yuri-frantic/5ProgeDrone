@@ -1,0 +1,8 @@
+# Request
+float64[] x_coeffs
+float64[] y_coeffs
+float64[] z_coeffs
+---
+# Response
+bool success
+string message

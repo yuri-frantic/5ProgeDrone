@@ -1,0 +1,7 @@
+<launch>
+<!-- Start the turtlesim node -->
+<node pkg="turtlesim" name="sim" type="turtlesim_node"/>
+
+<!-- Start the turtle control node -->
+<node pkg="my_turtle_project" name="turtle_control" type="turtle_control.py"/>
+</launch>
