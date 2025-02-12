@@ -39,7 +39,7 @@ public:
           // Взлетаем на 2 метра....
         for (int i = 0; i < 100; i++)
         {
-            do_takeoff(setpoint_.position.x, setpoint_.position.y, setpoint_.position.z);
+            do_takeoff(target_x, target_y, target_z);
             //ros::Rate rate1(0.2);
             rate.sleep();
         }
@@ -55,6 +55,23 @@ private:
     ros::Subscriber pose_sub_;
     ros::Publisher local_pos_pub_;
     ros::Timer offboard_timer_;
+    double target_x;
+    double target_y;
+    double target_z;
+    
+    double desired_position_x = 0;
+    double desired_position_y = 0;
+    double desired_position_z = 0;
+    double current_position_x = 0;
+    double current_position_y = 0;
+    double current_position_z = 0;
+
+    // Коэффициенты П-регулятора для осей
+    double kp_position_x = 1; 
+    double kp_position_y = 1;
+    double kp_position_z = 1;
+    double kp_yaw = 1;      
+
     
     ros::Rate rate = ros::Rate(20.0);
     mavros_msgs::State current_state_;
@@ -70,12 +87,14 @@ private:
 //        target.type_mask = mavros_msgs::PositionTarget::IGNORE_VX | mavros_msgs::PositionTarget::IGNORE_VY | mavros_msgs::PositionTarget::IGNORE_VZ | mavros_msgs::PositionTarget::IGNORE_AFX | mavros_msgs::PositionTarget::IGNORE_AFY | mavros_msgs::PositionTarget::IGNORE_AFZ;
 
         // Установка целевой позиции
-        setpoint_.position.x = msg->pose.position.x;
-        setpoint_.position.y = msg->pose.position.y;
-        setpoint_.position.z = msg->pose.position.z;
-        //std::cout << "x=" << setpoint_.position.x << " y=" << setpoint_.position.y << " z=" << setpoint_.position.z << std::endl;  
-        // Публикация целевой позиции
-        //local_pos_pub_.publish(setpoint_);
+        target_x = msg->pose.position.x;
+        target_y = msg->pose.position.y;
+        target_z = msg->pose.position.z;
+        
+        setpoint_.position.x = target_x;
+        setpoint_.position.y = target_y;
+        setpoint_.position.z = target_z;
+
     }
 
     void state_cb(const mavros_msgs::State::ConstPtr& msg) {
@@ -101,7 +120,7 @@ private:
             rate.sleep();
 
             // Проверим достижение заданной высоты с точностью в 10 см
-            if (std::abs(current_pose_.pose.position.x - X) < 0.1 && std::abs(current_pose_.pose.position.y - Y) < 0.1 && std::abs(current_pose_.pose.position.z - Z) < 0.1) {
+            if (std::abs(current_pose_.pose.position.x - X) < 0.2 && std::abs(current_pose_.pose.position.y - Y) < 0.2 && std::abs(current_pose_.pose.position.z - Z) < 0.2) {
                 altitude_reached = true;
                 ROS_INFO("Target altitude reached.");
                 //std::cout << "x=" << setpoint_.position.x << " y=" << setpoint_.position.y << " z=" << setpoint_.position.z << std::endl;
@@ -124,11 +143,31 @@ private:
             | mavros_msgs::PositionTarget::IGNORE_AFX | mavros_msgs::PositionTarget::IGNORE_AFY | mavros_msgs::PositionTarget::IGNORE_AFZ
             | mavros_msgs::PositionTarget::IGNORE_YAW_RATE;
         
-        // В этом примере летим в точку с заданным углом.        
-        setpoint_.position.x = x;
-        setpoint_.position.y = y;
-        setpoint_.position.z = z;
-        setpoint_.yaw = yaw;
+        // РАСЧЕТ скоростей       
+        
+        
+        double position_error_x = x - current_pose_.pose.position.x;
+        double position_error_y = y - current_pose_.pose.position.y;
+        double position_error_z = z - current_pose_.pose.position.z;
+        
+
+        // Применение П-регулятора для линейной скорости
+        double target_velocity_x = kp_position_x * position_error_x;
+        double target_velocity_y = kp_position_y * position_error_y;
+        double target_velocity_z = kp_position_z * position_error_z;
+
+        // Расчет угловой скорости 
+        double yaw_error = 0;
+        
+        // П-регулятор для угловой скорости 
+        double target_angular_velocity = kp_yaw * yaw_error;
+
+        setpoint_.velocity.x = target_velocity_x;
+        setpoint_.velocity.y = target_velocity_y;
+        setpoint_.velocity.z = target_velocity_z;
+        setpoint_.yaw_rate = target_angular_velocity;
+         
+       
     }
     
     // Арм аппарата
@@ -169,6 +208,9 @@ private:
     // Таймер отправки целевого положения
     void offboard_timer_cb(const ros::TimerEvent&) {
         setpoint_.header.stamp = ros::Time::now();
+        setpoint_.velocity.x = 1;
+        setpoint_.velocity.y = 1;
+        setpoint_.velocity.z = 1;
         local_pos_pub_.publish(setpoint_);
     }
 
