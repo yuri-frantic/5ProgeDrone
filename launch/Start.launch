@@ -1,0 +1,5 @@
+<launch>
+<node pkg="uav_controller" name="uav_circle_fly_example" type="uav_circle_fly_example"/>
+<node pkg="uav_controller" name="uav_controller_node" type="uav_controller_node"/>
+</launch>
+
