@@ -202,9 +202,6 @@ private:
     // Таймер отправки целевого положения
     void offboard_timer_cb(const ros::TimerEvent&) {
         setpoint_.header.stamp = ros::Time::now();
-        setpoint_.velocity.x = 1;
-        setpoint_.velocity.y = 1;
-        setpoint_.velocity.z = 1;
         local_pos_pub_.publish(setpoint_);
     }
 
