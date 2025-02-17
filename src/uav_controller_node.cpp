@@ -12,9 +12,9 @@ public:
     FlightCommander(): spinner_(2) {
         // Подписка на целевые координаты
         target_pose_sub_ = nh_.subscribe("/vehicle/desPose", 10, &FlightCommander::poseCallback, this);    
-    
-        // Подписываемся на состояние и положение ЛА
+        // Подписываемся на состояние ЛА
         state_sub_ = nh_.subscribe<mavros_msgs::State>("/mavros/state", 10, &FlightCommander::state_cb, this);
+        // Подписываемся текущее положение ЛА
         pose_sub_ = nh_.subscribe<geometry_msgs::PoseStamped>("/mavros/local_position/pose", 10, &FlightCommander::pose_cb, this);
         // Инициализируем publisher для целевого состояния ЛА
         local_pos_pub_ = nh_.advertise<mavros_msgs::PositionTarget>("/mavros/setpoint_raw/local", 10);
@@ -36,15 +36,21 @@ public:
 
         // Запускаем режим offboard
         offboard_enable(true);
-          // Взлетаем на 2 метра....
-        for (int i = 0; i < 100; i++)
-        {
-            do_takeoff(setpoint_.position.x, setpoint_.position.y, setpoint_.position.z);
-            //ros::Rate rate1(0.2);
-            rate.sleep();
-        }
 
-        // Методы для следования в точку и  посадки можно сделать по аналогии.
+        // Запускаем режим АРМ
+        if (!current_state_.armed)
+            arm_vehicle(true);
+
+          //Запускаем полет
+        auto start_time = ros::Time::now();
+        
+        while (ros::ok()) {
+              rate.sleep();
+              //std::cout << "Xc=" << current_pose_.pose.position.x << " Yc=" << current_pose_.pose.position.y << " Zc=" << current_pose_.pose.position.z << " | Xd=" << desired_position_x << " Yd=" << desired_position_y << " Zd=" << desired_position_z << " | Vx=" << setpoint_.velocity.x << " Vy=" << setpoint_.velocity.y << " Vz=" << setpoint_.velocity.z << std::endl;
+              calculate_velocitys();
+              
+        }     
+ 
         
     }
 
@@ -64,10 +70,10 @@ private:
     double current_position_z = 0;
 
     // Коэффициенты П-регулятора для осей
-    double kp_position_x = 5; 
-    double kp_position_y = 5;
-    double kp_position_z = 5;
-    double kp_yaw = 1;      
+    double kp_position_x = 1; 
+    double kp_position_y = 1;
+    double kp_position_z = 1;
+ //   double kp_yaw = 1;      
 
     
     ros::Rate rate = ros::Rate(20.0);
@@ -76,91 +82,49 @@ private:
     geometry_msgs::PoseStamped current_pose_;
     ros::AsyncSpinner spinner_;
 
-
+    //  Установка целевоой позиции
     void poseCallback(const geometry_msgs::PoseStamped::ConstPtr& msg) {
         // Обработка полученных координат
- //       mavros_msgs::PositionTarget target;
-//        target.coordinate_frame = mavros_msgs::PositionTarget::FRAME_LOCAL_NED;
-//        target.type_mask = mavros_msgs::PositionTarget::IGNORE_VX | mavros_msgs::PositionTarget::IGNORE_VY | mavros_msgs::PositionTarget::IGNORE_VZ | mavros_msgs::PositionTarget::IGNORE_AFX | mavros_msgs::PositionTarget::IGNORE_AFY | mavros_msgs::PositionTarget::IGNORE_AFZ;
-
-        // Установка целевой позиции
        
-        setpoint_.position.x = msg->pose.position.x;
-        setpoint_.position.y = msg->pose.position.y;
-        setpoint_.position.z = msg->pose.position.z;
+        desired_position_x = msg->pose.position.x;
+        desired_position_y = msg->pose.position.y;
+        desired_position_z = msg->pose.position.z;
 
     }
-
+    //  Получение текущего состояния дрона
     void state_cb(const mavros_msgs::State::ConstPtr& msg) {
         current_state_ = *msg;
     }
 
+    //  Получение текущих координат дрона
     void pose_cb(const geometry_msgs::PoseStamped::ConstPtr& msg) {
         current_pose_ = *msg;
     }
 
-    void do_takeoff(double X, double Y, double Z) {
-        if (!current_state_.armed)
-            arm_vehicle(true);
 
-        set_position(X, Y, Z, 0);
-        
-        double ascent_speed = 1.0;  // Установим скорость взлета 1 м\с
-        double timeout = 20.0;  // установим таймаут исходя из скорости взлета с небольшим запасом
-        auto start_time = ros::Time::now();
-        bool altitude_reached = false;
-
-        while (ros::ok() && !altitude_reached) {
-            rate.sleep();
-
-            // Проверим достижение заданной высоты с точностью в 10 см
-            if (std::abs(current_pose_.pose.position.x - X) < 0.2 && std::abs(current_pose_.pose.position.y - Y) < 0.2 && std::abs(current_pose_.pose.position.z - Z) < 0.2) {
-                altitude_reached = true;
-                ROS_INFO("Target altitude reached.");
-                //std::cout << "x=" << setpoint_.position.x << " y=" << setpoint_.position.y << " z=" << setpoint_.position.z << std::endl;
-            }
-
-            // Проверяем не вышел ли взлет за таймаут
-            if ((ros::Time::now() - start_time).toSec() > timeout) {
-                ROS_WARN("Timeout reached without achieving target altitude.");
-                break;
-            }
-        }
-    }
-    
-    // Установка положения
-    void set_position(float x, float y, float z, float yaw) {
+    void calculate_velocitys() {
         // Устанавливаем систему координат в рамках которой будет отправляться команда
         setpoint_.coordinate_frame = mavros_msgs::PositionTarget::FRAME_LOCAL_NED;
         // Установим битовую маску где покажем что должен выполнить автопилот, полет в точку или набор заданной скорости, ускорения, угла угловой скорости.
-        setpoint_.type_mask = mavros_msgs::PositionTarget::IGNORE_VX | mavros_msgs::PositionTarget::IGNORE_VY | mavros_msgs::PositionTarget::IGNORE_VZ
-            | mavros_msgs::PositionTarget::IGNORE_AFX | mavros_msgs::PositionTarget::IGNORE_AFY | mavros_msgs::PositionTarget::IGNORE_AFZ
+        setpoint_.type_mask = mavros_msgs::PositionTarget::IGNORE_AFX | mavros_msgs::PositionTarget::IGNORE_AFY | mavros_msgs::PositionTarget::IGNORE_AFZ
             | mavros_msgs::PositionTarget::IGNORE_YAW_RATE;
         
         // РАСЧЕТ скоростей       
-        
-        
-        double position_error_x = x - current_pose_.pose.position.x;
-        double position_error_y = y - current_pose_.pose.position.y;
-        double position_error_z = z - current_pose_.pose.position.z;
+        double position_error_x = desired_position_x - current_pose_.pose.position.x;
+        double position_error_y = desired_position_y - current_pose_.pose.position.y;
+        double position_error_z = desired_position_z - current_pose_.pose.position.z;
         
 
         // Применение П-регулятора для линейной скорости
         double target_velocity_x = kp_position_x * position_error_x;
         double target_velocity_y = kp_position_y * position_error_y;
         double target_velocity_z = kp_position_z * position_error_z;
-
-        // Расчет угловой скорости 
-        double yaw_error = 0;
-        
-        // П-регулятор для угловой скорости 
-        double target_angular_velocity = kp_yaw * yaw_error;
+ 
 
         setpoint_.velocity.x = target_velocity_x;
         setpoint_.velocity.y = target_velocity_y;
         setpoint_.velocity.z = target_velocity_z;
-        setpoint_.yaw_rate = target_angular_velocity;
-         
+                
        
     }
     
@@ -188,8 +152,7 @@ private:
             offboard_timer_.stop();
             return;
         }
-        // Установка начального положения.
-        set_position(0, 0, 0, 0);
+
         // Запускаем таймер отправки целевого положения
         offboard_timer_.start();
         // Немного ждем пока сообщения начнут приходить на автопилот

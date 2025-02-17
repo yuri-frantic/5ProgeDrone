@@ -133,6 +133,7 @@ private:
     
     // Арм аппарата
     bool arm_vehicle(bool arm = true) {
+    std::cout << "Вошли в АРМ" << std::endl;
         mavros_msgs::CommandBool arm_cmd;
         arm_cmd.request.value = arm;
         
@@ -170,6 +171,7 @@ private:
     void offboard_timer_cb(const ros::TimerEvent&) {
         setpoint_.header.stamp = ros::Time::now();
         local_pos_pub_.publish(setpoint_);
+        
     }
 
 };
