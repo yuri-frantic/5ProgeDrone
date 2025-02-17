@@ -108,7 +108,7 @@ private:
         // Устанавливаем систему координат в рамках которой будет отправляться команда
         setpoint_.coordinate_frame = mavros_msgs::PositionTarget::FRAME_LOCAL_NED;
         // Установим битовую маску где покажем что должен выполнить автопилот, полет в точку или набор заданной скорости, ускорения, угла угловой скорости.
-        setpoint_.type_mask = mavros_msgs::PositionTarget::IGNORE_AFX | mavros_msgs::PositionTarget::IGNORE_AFY | mavros_msgs::PositionTarget::IGNORE_AFZ
+        setpoint_.type_mask = mavros_msgs::PositionTarget::IGNORE_PX | mavros_msgs::PositionTarget::IGNORE_PY | mavros_msgs::PositionTarget::IGNORE_PZ | mavros_msgs::PositionTarget::IGNORE_AFX | mavros_msgs::PositionTarget::IGNORE_AFY | mavros_msgs::PositionTarget::IGNORE_AFZ
             | mavros_msgs::PositionTarget::IGNORE_YAW_RATE;
         
         // РАСЧЕТ скоростей       
