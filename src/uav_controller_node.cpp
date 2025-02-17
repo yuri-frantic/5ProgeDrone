@@ -46,8 +46,8 @@ public:
         
         while (ros::ok()) {
               rate.sleep();
-              //std::cout << "Xc=" << current_pose_.pose.position.x << " Yc=" << current_pose_.pose.position.y << " Zc=" << current_pose_.pose.position.z << " | Xd=" << desired_position_x << " Yd=" << desired_position_y << " Zd=" << desired_position_z << " | Vx=" << setpoint_.velocity.x << " Vy=" << setpoint_.velocity.y << " Vz=" << setpoint_.velocity.z << std::endl;
               calculate_velocitys();
+              local_pos_pub_.publish(setpoint_); 
               
         }     
  
@@ -124,7 +124,8 @@ private:
         setpoint_.velocity.x = target_velocity_x;
         setpoint_.velocity.y = target_velocity_y;
         setpoint_.velocity.z = target_velocity_z;
-                
+
+              
        
     }
     
@@ -165,7 +166,7 @@ private:
     // Таймер отправки целевого положения
     void offboard_timer_cb(const ros::TimerEvent&) {
         setpoint_.header.stamp = ros::Time::now();
-        local_pos_pub_.publish(setpoint_);
+        //local_pos_pub_.publish(setpoint_);
     }
 
 };
