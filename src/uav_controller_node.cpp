@@ -19,8 +19,8 @@ public:
         // Инициализируем publisher для целевого состояния ЛА
         local_pos_pub_ = nh_.advertise<mavros_msgs::PositionTarget>("/mavros/setpoint_raw/local", 10);
         // Инициализируем таймер для отправки целевого состояния
-        offboard_timer_ = nh_.createTimer(ros::Duration(0.05), &FlightCommander::offboard_timer_cb, this); // 20 Hz
-        offboard_timer_.stop(); // Останавливаем таймер до перехода в режим OFFBOARD
+        //offboard_timer_ = nh_.createTimer(ros::Duration(0.05), &FlightCommander::offboard_timer_cb, this); // 20 Hz
+        //offboard_timer_.stop(); // Останавливаем таймер до перехода в режим OFFBOARD
         // (AsyncSpinner - это класс, который используется для асинхронного выполнения коллбеков (callback) из очереди сообщений
         // аналогично ros::spin() или ros::spinOnce()
         // Запускаем асинхронный спинер
@@ -41,9 +41,11 @@ public:
         if (!current_state_.armed)
             arm_vehicle(true);
 
-          //Запускаем полет
-        auto start_time = ros::Time::now();
+          
+        //auto start_time = ros::Time::now();
         
+
+        //Запускаем полет
         while (ros::ok()) {
               rate.sleep();
               calculate_velocitys();
@@ -73,7 +75,7 @@ private:
     double kp_position_x = 1; 
     double kp_position_y = 1;
     double kp_position_z = 1;
- //   double kp_yaw = 1;      
+     
 
     
     ros::Rate rate = ros::Rate(20.0);
@@ -149,13 +151,13 @@ private:
     
     // Активация автоматического режима полета
     void offboard_enable(bool enable) {
-        if (!enable) {
-            offboard_timer_.stop();
-            return;
-        }
+        //if (!enable) {
+        //    offboard_timer_.stop();
+       //     return;
+       // }
 
         // Запускаем таймер отправки целевого положения
-        offboard_timer_.start();
+        //offboard_timer_.start();
         // Немного ждем пока сообщения начнут приходить на автопилот
         ros::Rate rate(1.0);
         rate.sleep();
@@ -164,10 +166,10 @@ private:
     }
 
     // Таймер отправки целевого положения
-    void offboard_timer_cb(const ros::TimerEvent&) {
-        setpoint_.header.stamp = ros::Time::now();
+    //void offboard_timer_cb(const ros::TimerEvent&) {
+    //    setpoint_.header.stamp = ros::Time::now();
         //local_pos_pub_.publish(setpoint_);
-    }
+    //}
 
 };
 
